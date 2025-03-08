@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,6 @@ import {
   AlertCircle,
   XCircle,
 } from "lucide-react";
-import { customers, employees, products, orders } from "@/lib/data";
 import {
   Table,
   TableBody,
@@ -35,6 +35,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEffect, useState } from "react";
+import {
+  fetchCustomers,
+  fetchEmployees,
+  fetchProducts,
+  fetchOrders,
+} from "@/lib/supabase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Custom hook for counting animation
 const useCountAnimation = (end: number, duration: number = 2000) => {
@@ -65,6 +72,27 @@ const useCountAnimation = (end: number, duration: number = 2000) => {
 
 const Index = () => {
   const navigate = useNavigate();
+
+  // Fetch data from Supabase
+  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: fetchCustomers,
+  });
+
+  const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
+    queryKey: ["employees"],
+    queryFn: fetchEmployees,
+  });
+
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["products"],
+    queryFn: fetchProducts,
+  });
+
+  const { data: orders = [], isLoading: isLoadingOrders } = useQuery({
+    queryKey: ["orders"],
+    queryFn: fetchOrders,
+  });
 
   // Calculate total revenue
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -126,6 +154,31 @@ const Index = () => {
       secondaryText: "Add New",
     },
   ];
+
+  // Loading state
+  if (
+    isLoadingCustomers ||
+    isLoadingEmployees ||
+    isLoadingProducts ||
+    isLoadingOrders
+  ) {
+    return (
+      <Layout
+        title="Dashboard"
+        description="Welcome to your business management dashboard."
+      >
+        <div className="space-y-6">
+          <Skeleton className="h-[120px] w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[200px] w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-[400px] w-full" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout
@@ -246,33 +299,30 @@ const Index = () => {
                 {recentOrders.map((order) => (
                   <TableRow
                     key={order.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer"
                     onClick={() => navigate(`/orders/${order.id}`)}
                   >
-                    <TableCell className="font-medium">#{order.id}</TableCell>
+                    <TableCell className="font-mono">
+                      {order.id.substring(0, 8).toUpperCase()}
+                    </TableCell>
                     <TableCell>{order.customerName}</TableCell>
                     <TableCell>
                       {new Date(order.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${
-                          order.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : order.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {order.status === "completed" ? (
-                          <CheckCircle2 className="h-3 w-3" />
-                        ) : order.status === "pending" ? (
-                          <AlertCircle className="h-3 w-3" />
-                        ) : (
-                          <XCircle className="h-3 w-3" />
+                      <div className="flex items-center gap-2">
+                        {order.status === "completed" && (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
                         )}
-                        {order.status}
-                      </span>
+                        {order.status === "processing" && (
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        )}
+                        {order.status === "cancelled" && (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                        {order.status.charAt(0).toUpperCase() +
+                          order.status.slice(1)}
+                      </div>
                     </TableCell>
                     <TableCell>${order.total.toLocaleString()}</TableCell>
                   </TableRow>
